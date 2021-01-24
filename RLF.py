@@ -12,9 +12,8 @@ class RLF:
     GRAY_LEVEL_CHANNEL_MAX_VALUE = 255
 
     # horizontal, vertical, diagonal 1, diagonal 2
-    run_directions = [True,True,False,False]
+    run_directions = [True,True,True,True]
     num_of_gray_levels = 0
-    max_feature_length = 5
     range_step = 0
 
 
@@ -65,7 +64,7 @@ class RLF:
         for y in range(0, self.img_height):
             for x in range(1, self.img_width):
                 pixel_value = self.processed_img.getpixel((x, y))
-                if feature_length < self.max_feature_length - 1 and pixel_value == last_pixel_value:
+                if pixel_value == last_pixel_value:
                     feature_length += 1
                 else :
                     GLRLM[last_pixel_value][feature_length] += 1
@@ -90,7 +89,7 @@ class RLF:
         for x in range(0, self.img_width):# img_width
             for y in range(1, self.img_height):
                 pixel_value = self.processed_img.getpixel((x, y))
-                if feature_length < self.max_feature_length - 1 and pixel_value == last_pixel_value:
+                if pixel_value == last_pixel_value:
                     feature_length += 1
                 else :
                     GLRLM[last_pixel_value][feature_length] += 1
@@ -104,13 +103,108 @@ class RLF:
                 last_pixel_value = self.processed_img.getpixel((x+1, 0))
 
         return GLRLM
-        None
 
     def generate_GLRLM_diagonal_left_to_right(self):
-        None
+        #GLRLM(i,j) - Gray-Level Run Length Matrix for direction, where i (row) is features gray-level and j (column) is its length
+        GLRLM = np.zeros((self.num_of_gray_levels, self.img_width), dtype=np.int64)
+            
+        for x_outer in range(0, self.img_width):
+            x = x_outer            
+            y = 0
+            
+            feature_length = 1
+            last_pixel_value = self.processed_img.getpixel((x, y))
+            x += 1
+            y += 1
+
+            while  x < self.img_width and y < self.img_height:
+                pixel_value = self.processed_img.getpixel((x, y))
+                if pixel_value == last_pixel_value:
+                    feature_length += 1
+                else :
+                    GLRLM[last_pixel_value][feature_length] += 1
+                    feature_length = 1
+                    last_pixel_value = pixel_value
+                x += 1
+                y += 1
+
+            GLRLM[last_pixel_value][feature_length] += 1
+
+        # lower left bitmap triangle (not covered by main loop)
+        for y_outer in range(1, self.img_height):
+            y = y_outer
+            x = 0
+
+            feature_length = 1
+            last_pixel_value = self.processed_img.getpixel((x,y))
+            x += 1
+            y += 1
+
+            while x < self.img_width and y < self.img_height:
+                pixel_value = self.processed_img.getpixel((x, y))
+                if pixel_value == last_pixel_value:
+                    feature_length += 1
+                else :
+                    GLRLM[last_pixel_value][feature_length] += 1
+                    feature_length = 1
+                    last_pixel_value = pixel_value
+                x += 1
+                y += 1
+                
+            GLRLM[last_pixel_value][feature_length] += 1
+
+        return GLRLM
     
     def generate_GLRLM_diagonal_right_to_left(self):
-        None
+        #GLRLM(i,j) - Gray-Level Run Length Matrix for direction, where i (row) is features gray-level and j (column) is its length
+        GLRLM = np.zeros((self.num_of_gray_levels, self.img_width), dtype=np.int64)
+            
+        for x_outer in range(self.img_width - 1, -1, -1):
+            x = x_outer            
+            y = 0
+            
+            feature_length = 1
+            last_pixel_value = self.processed_img.getpixel((x, y))
+            x -= 1
+            y += 1
+
+            while  x > 0 and y < self.img_height:
+                pixel_value = self.processed_img.getpixel((x, y))
+                if pixel_value == last_pixel_value:
+                    feature_length += 1
+                else :
+                    GLRLM[last_pixel_value][feature_length] += 1
+                    feature_length = 1
+                    last_pixel_value = pixel_value
+                x -= 1
+                y += 1
+
+            GLRLM[last_pixel_value][feature_length] += 1
+
+        # lower left bitmap triangle (not covered by main loop)
+        for y_outer in range(1, self.img_height):
+            y = y_outer
+            x = self.img_width - 1
+
+            feature_length = 1
+            last_pixel_value = self.processed_img.getpixel((x,y))
+            x -= 1
+            y += 1
+
+            while x < self.img_width and y < self.img_height:
+                pixel_value = self.processed_img.getpixel((x, y))
+                if pixel_value == last_pixel_value:
+                    feature_length += 1
+                else :
+                    GLRLM[last_pixel_value][feature_length] += 1
+                    feature_length = 1
+                    last_pixel_value = pixel_value
+                x -= 1
+                y += 1
+                
+            GLRLM[last_pixel_value][feature_length] += 1
+
+        return GLRLM
 
     def generate_GLRLM(self):
         """Calculates GLRLM matrix from features in directions specified in parameter"""
@@ -121,11 +215,9 @@ class RLF:
         if (self.run_directions[1]):
             self.GLRLM += self.generate_GLRLM_vertical()
         if (self.run_directions[2]):
-            # TODO: add diagonal run
-            None
+            self.GLRLM += self.generate_GLRLM_diagonal_left_to_right()
         if (self.run_directions[3]):
-            # TODO: add diagonal run
-            None
+            self.GLRLM += self.generate_GLRLM_diagonal_right_to_left()
 
         self.K = self.GLRLM.sum()
 
@@ -241,15 +333,14 @@ if __name__ == '__main__':
     num_of_gray_levels = 7
 
     rlf = RLF(num_of_gray_levels)
-    rlf.load_image('blurry_image.jpg')
+    rlf.load_image('input/blurry_image.jpg')
     rlf.generate_GLRLM()
     image_params = rlf.generate_paramters()
     print(image_params)
-    rlf.save_params('blurry.txt')
+    rlf.save_params('output/blurry.txt')
 
-    
-    rlf.load_image('buildings_image.jpg')
+    rlf.load_image('input/buildings_image.jpg')
     rlf.generate_GLRLM()
     image_params = rlf.generate_paramters()
     print(image_params)
-    rlf.save_params('buildings.txt')
+    rlf.save_params('output/buildings.txt')
